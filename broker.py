@@ -3,6 +3,8 @@ import os
 import socket   
 import threading    
 import hashlib
+import signal
+
 
 IP = socket.gethostbyname(socket.gethostname())
 
@@ -10,22 +12,29 @@ IP = socket.gethostbyname(socket.gethostname())
 PORT = 4456
 ADDR = (IP, PORT)       
 SIZE = 1024
-FORMAT = "utf-8"    
+FORMAT = "utf-8"
+PRODUCER_DATA_PATH="DATA"  
+
+
+
 
 def handle_client(conn, addr):
-        print(f"[NEW CONNECTION] {addr} connected.")
+        topicName = conn.recv(SIZE).decode(FORMAT)
+        print(f"[NEW CONNECTION] {addr} connected. [TOPIC] {topicName} ")
         while True: 
-            data = conn.recv(SIZE).decode()
+            data = conn.recv(SIZE).decode(FORMAT)
             if data =="LOGOUT":
                 break
-            else:
-                print(data)
 
+            filepath = os.path.join(PRODUCER_DATA_PATH, topicName)
+            with open(f"{filepath}/broker1.txt", "a+") as f: 
+                    f.write(data)
+                    f.close()
                 
         print(f"[DISCONNECTED] {addr} disconnected")
         conn.close()
         print("Connection is closed with port: ", addr[1])
-        # return
+
     
 
 def main(): #create server
@@ -36,12 +45,11 @@ def main(): #create server
     print("This is your IP: ", IP)
     server.listen() 
     print(f"[LISTENING] Server is listening on {IP}  PORT: {PORT}.")
-    #wait for client to connect (Create an infinite loop)
 
     while True:
         conn, addr = server.accept()
         print("Address of client on network: ",addr)
-        thread = threading.Thread(target=handle_client, args=(conn, addr))
+        thread = threading.Thread(target = handle_client, args=(conn, addr))
         thread.start()
         print("[ACTIVE CONNECTIONS]")
         
