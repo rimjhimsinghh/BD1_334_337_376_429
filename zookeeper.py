@@ -6,11 +6,16 @@ BROKER1_PORT = 4456 # Default Leader
 BROKER2_PORT = 4457
 BROKER3_PORT = 4458
 
+RW1_PORT = 9091 # Default Leader
+RW2_PORT = 9092
+RW3_PORT = 9093
+
 from socket import socket, gethostbyname, gethostname, AF_INET, SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 from threading import Lock, Thread, Event
 from time import time, ctime, sleep
 import sys
 from multiprocessing import Process
+import json
 
 class ZookeeperLog:
     # "Manages Zookeeper Logs"
@@ -19,6 +24,11 @@ class ZookeeperLog:
             ('192.168.44.1', BROKER1_PORT): True,
             ('192.168.44.1', BROKER2_PORT): False,
             ('192.168.44.1', BROKER3_PORT): False,
+        }
+        self.producerPort = {
+            ('192.168.44.1', BROKER1_PORT): RW1_PORT,
+            ('192.168.44.1', BROKER2_PORT): RW2_PORT,
+            ('192.168.44.1', BROKER3_PORT): RW3_PORT, 
         }
         self.noLeader = True
 
@@ -136,7 +146,7 @@ class BeatRec(Thread):
             
 
 
-def giveLeader(port, lport):
+def giveLeader(port, lport, rwPort):
     server_socket = socket(AF_INET, SOCK_STREAM)
     server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
     server_socket.bind(('0.0.0.0', port))
@@ -153,7 +163,10 @@ def giveLeader(port, lport):
         print(request)
 
         # Send HTTP response
-        response = f'HTTP/1.0 200 OK\n\n{lport}'
+        responseDict = {
+            lport: rwPort
+        }
+        response = f'HTTP/1.0 200 OK\n\n{responseDict}'
         client_connection.sendall(response.encode())
         client_connection.close()
 
@@ -173,7 +186,7 @@ def main():
     beatDictObject = BeatDict()
     beatRecThread = BeatRec(beatRecGoOnEvent, beatDictObject.update, HBPORT)
     zooLogs = ZookeeperLog()
-    leaderSocket = Process(target=giveLeader, args=(LPORT, zooLogs.getLeader()))
+    leaderSocket = Process(target=giveLeader, args=(LPORT, zooLogs.getLeader(), zooLogs.producerPort[zooLogs.getLeader()]))
     print("Initialized")
 
     if __debug__:
@@ -198,7 +211,7 @@ def main():
                     if newLeader:
                         # beatRecThread.send("You are the new Leader", newLeader)
                         leaderSocket.terminate()
-                        leaderSocket = Process(target=giveLeader, args=(LPORT, zooLogs.getLeader()))
+                        leaderSocket = Process(target=giveLeader, args=(LPORT, zooLogs.getLeader(), zooLogs.producerPort[zooLogs.getLeader()]))
                         leaderSocket.start()
 
 
