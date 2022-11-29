@@ -4,8 +4,7 @@ import socket
 import threading    
 import hashlib
 import signal
-
-
+import time
 IP = socket.gethostbyname(socket.gethostname())
 
 
@@ -17,11 +16,17 @@ PRODUCER_DATA_PATH="DATA"
 
 
 
-
 def handle_client(conn, addr):
         topicName = conn.recv(SIZE).decode(FORMAT)
+        files = os.listdir(PRODUCER_DATA_PATH)
+        # print(files)
+        if topicName not in files:
+            filepath = os.path.join(PRODUCER_DATA_PATH, topicName)  #Creates a folder for the topic
+            os.mkdir(filepath)
+            print(topicName + " created.")
+        # time.sleep(1)
         print(f"[NEW CONNECTION] {addr} connected. [TOPIC] {topicName} ")
-        while True: 
+        while True:
             data = conn.recv(SIZE).decode(FORMAT)
             if data =="LOGOUT":
                 break
@@ -45,6 +50,12 @@ def main(): #create server
     print("This is your IP: ", IP)
     server.listen() 
     print(f"[LISTENING] Server is listening on {IP}  PORT: {PORT}.")
+
+    files = os.listdir('.') # Make a directory for all topics
+    print(files)
+    if PRODUCER_DATA_PATH not in files:
+            os.mkdir(PRODUCER_DATA_PATH)
+
 
     while True:
         conn, addr = server.accept()
