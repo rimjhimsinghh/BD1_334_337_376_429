@@ -1,83 +1,30 @@
+""" PyHeartBeat client: sends an UDP packet to a given server every 10 seconds.
 
-import os
-import socket
-import threading
-import hashlib
-import signal
-import time
-from json import load, dump
-IP = socket.gethostbyname(socket.gethostname())
+Adjust the constant parameters as needed, or call as:
+    PyHBClient.py serverip [udpport]
+"""
 
+from socket import socket, AF_INET, SOCK_DGRAM, gethostname
+from time import time, ctime, sleep
+import sys
 
-PORT = 4456
-ADDR = (IP, PORT)
-SIZE = 1024
-FORMAT = "utf-8"
-PRODUCER_DATA_PATH = "DATA"
+SERVERIP = '192.168.44.1'  # local host, just for testing
+HBPORT = 43278            # an arbitrary UDP port
+BEATWAIT = 10             # number of seconds between heartbeats
 
+# if len(sys.argv)>1:
+#     SERVERIP=sys.argv[1]
+# if len(sys.argv)>2:
+#     HBPORT=sys.argv[2]
 
-def handle_client(conn, addr):
-    topicName = conn.recv(SIZE).decode(FORMAT)
-    files = os.listdir(PRODUCER_DATA_PATH)
+my_port = int(sys.argv[1])
 
-    if topicName not in files:
-        # Creates a folder for the topic
-        filepath = os.path.join(PRODUCER_DATA_PATH, topicName)
-        os.mkdir(filepath)
-        with open(f"{filepath}/{topicName}logs.txt", 'w') as f:
-            final_dict = {'p': 0}
-            dump(final_dict, f)
-            f.close()
-        print(topicName + " created.")
-
-    print(f"[NEW CONNECTION] {addr} connected. [TOPIC] {topicName} ")
-    while True:
-        data = conn.recv(SIZE).decode(FORMAT)
-        if data == "LOGOUT":
-            break
-
-        filepath = os.path.join(PRODUCER_DATA_PATH, topicName)
-        with open(f"{filepath}/{topicName}logs.txt", 'r') as f:
-            d = load(f)
-            p = d['p']
-            print(p)
-            f.close()
-        with open(f"{filepath}/partition{p}.txt", "a+") as f:
-            f.write(data)
-            p = (p+1) % 3
-            # topicname.txt in each topic folder
-            f.close()
-        with open(f"{filepath}/{topicName}logs.txt", 'w') as f:
-            final_dict = {'p': p}
-            dump(final_dict, f)
-            f.close()
-
-    print(f"[DISCONNECTED] {addr} disconnected")
-    conn.close()
-    print("Connection is closed with port: ", addr[1])
-
-
-def main():  # create server
-    print("[STARTING]\nServer is starting")
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(ADDR)  # bind IP and port
-    print("Binding Successful!")
-    print("This is your IP: ", IP)
-    server.listen()
-    print(f"[LISTENING] Server is listening on {IP}  PORT: {PORT}.")
-
-    files = os.listdir('.')  # Make a directory for all topics
-    # print(files)
-    if PRODUCER_DATA_PATH not in files:
-        os.mkdir(PRODUCER_DATA_PATH)
-
-    while True:
-        conn, addr = server.accept()
-        print("Address of client on network: ", addr)
-        thread = threading.Thread(target=handle_client, args=(conn, addr))
-        thread.start()
-        print("[ACTIVE CONNECTIONS]")
-
-
-if __name__ == "__main__":
-    main()
+hbsocket = socket(AF_INET, SOCK_DGRAM)
+hbsocket.bind((gethostname(), my_port))
+print(f"PyHeartBeat client sending to IP {SERVERIP} , port {HBPORT}")
+print("\n*** Press Ctrl-C to terminate ***\n")
+while 1:
+    hbsocket.sendto('XXXXX!'.encode('utf-8'), (SERVERIP, HBPORT))
+    if __debug__:
+        print(f"Time: {ctime(time())}")
+    sleep(BEATWAIT)
