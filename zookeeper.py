@@ -1,15 +1,16 @@
 HBPORT = 43278
 CHECKWAIT = 30
+LPORT = 8000
 
 BROKER1_PORT = 4456 # Default Leader
 BROKER2_PORT = 4457
 BROKER3_PORT = 4458
 
-from socket import socket, gethostbyname, gethostname, AF_INET, SOCK_DGRAM
+from socket import socket, gethostbyname, gethostname, AF_INET, SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 from threading import Lock, Thread, Event
 from time import time, ctime, sleep
 import sys
-
+from multiprocessing import Process
 
 class ZookeeperLog:
     # "Manages Zookeeper Logs"
@@ -135,6 +136,28 @@ class BeatRec(Thread):
             
 
 
+def giveLeader(port, lport):
+    server_socket = socket(AF_INET, SOCK_STREAM)
+    server_socket.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    server_socket.bind(('0.0.0.0', port))
+    server_socket.listen(1)
+    print(f'Listening on port {port} ... to return leader port')
+
+    while True:    
+        # Wait for client connections
+        print("Waiting for connections")
+        client_connection, client_address = server_socket.accept()
+
+        # Get the client request
+        request = client_connection.recv(1024).decode()
+        print(request)
+
+        # Send HTTP response
+        response = f'HTTP/1.0 200 OK\n\n{lport}'
+        client_connection.sendall(response.encode())
+        client_connection.close()
+
+        
 
 
 def main():
@@ -150,11 +173,14 @@ def main():
     beatDictObject = BeatDict()
     beatRecThread = BeatRec(beatRecGoOnEvent, beatDictObject.update, HBPORT)
     zooLogs = ZookeeperLog()
+    leaderSocket = Process(target=giveLeader, args=(LPORT, zooLogs.getLeader()))
     print("Initialized")
 
     if __debug__:
         print(beatRecThread)
     beatRecThread.start()
+    if __name__ == '__main__':
+        leaderSocket.start()
     print(f"PyHeartBeat server listening on IP: {beatRecThread.s_ip} Port: {HBPORT}")
     print ("\n*** Press Ctrl-C to stop ***\n")
     while True:
@@ -170,7 +196,11 @@ def main():
                 if zooLogs.getLeader() in silent:
                     newLeader = zooLogs.electLeader(running)
                     if newLeader:
-                        beatRecThread.send("You are the new Leader", newLeader)
+                        # beatRecThread.send("You are the new Leader", newLeader)
+                        leaderSocket.terminate()
+                        leaderSocket = Process(target=giveLeader, args=(LPORT, zooLogs.getLeader()))
+                        leaderSocket.start()
+
 
             if running:
                 print("Running Brokers")
@@ -182,6 +212,7 @@ def main():
             print("Exiting.")
             beatRecGoOnEvent.clear()
             beatRecThread.goOnEvent.clear()
+            leaderSocket.terminate()
             print("In Join")
             beatRecThread.join()
             print("Out Join")
