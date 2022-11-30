@@ -1,12 +1,13 @@
 import os
 import socket
 import threading
+
 import time
 from json import load, dump
 import multiprocessing
 import sys
 import requests
-
+import datetime
 IP = socket.gethostbyname(socket.gethostname())
 
 
@@ -28,7 +29,7 @@ def handle_client(conn, addr):
     topicName = conn.recv(SIZE).decode(FORMAT)
     log+= f"Connection Received. Topic Name: {topicName} " + "\n"
     pythonName = conn.recv(SIZE).decode(FORMAT)
-    print(f"FIle Type: {pythonName}")
+    # print(f"FIle Type: {pythonName}")
     files = os.listdir(PRODUCER_DATA_PATH)
 
     if topicName not in files and pythonName == "producer.py":
@@ -47,7 +48,7 @@ def handle_client(conn, addr):
     if pythonName == "producer.py":
         while True:
             data = conn.recv(SIZE).decode(FORMAT)
-            print(data)
+            # print(data)
             if data == "LOGOUT":
                 break
 
@@ -57,6 +58,7 @@ def handle_client(conn, addr):
                 p = d['p']
                 f.close()
             with open(f"{filepath}/partition{p}.txt", "a+") as f:
+                # timestr = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
                 f.write(data)
                 p = (p+1) % 3
                 log+=f"{data} --moved to file: partition{p}" + "\n"
@@ -79,16 +81,45 @@ def handle_client(conn, addr):
             log = ''
             f.close()
     
+
+
     if pythonName == "consumer.py":
+        flag = conn.recv(SIZE).decode(FORMAT)
+        prev = 0
+        pres = 0
         while True:
             filepath = os.path.join(PRODUCER_DATA_PATH, topicName)
-            if topicName not in files:
-                break
-            print("Connected")
+            # print("Connected")
             data = conn.recv(SIZE).decode(FORMAT)
-            if data == "LOGOUT":
+            if data =="LOGOUT":
                 break
-            #YOUR CODE HERE
+            # print("Printing files")
+            files = os.listdir(f"{PRODUCER_DATA_PATH}/{topicName}")
+
+            files = os.listdir(f"{PRODUCER_DATA_PATH}/{topicName}")
+            files.remove(f"{topicName}logs.txt")
+            files.sort()
+            # print(files)
+            no_of_files = len(files)
+            # print(no_of_files)
+            filedata = list()
+            for i in range (no_of_files):
+
+                with open(f"{PRODUCER_DATA_PATH}/{topicName}/{files[i]}", "r") as f:
+                    lines = f.readlines()
+
+                    filedata.extend(lines)
+                    f.close()
+            # fileDATA = [['','','',...],[],[]] => []
+            # final_list = Merge(filedata)
+            pres = len(filedata)
+            if flag == '--from-beginning':
+                conn.send(str(filedata).encode(FORMAT))
+                flag = None
+            else: 
+                conn.send(str(filedata[prev: pres]).encode(FORMAT))
+            prev=pres 
+            time.sleep(5)
         print(f"[DISCONNECTED] {addr} disconnected")
         conn.close()
         print("Connection is closed with port: ", addr[1])
@@ -103,7 +134,8 @@ def main():
     server.listen()
     print(f"[LISTENING] Server is listening on {IP}  PORT: {PORT}.")
 
-    files = os.listdir('.')  
+    files = os.listdir('.')
+
     if PRODUCER_DATA_PATH not in files:
         os.mkdir(PRODUCER_DATA_PATH) # Make a directory for all topics
     if  SERVERLOGS not in files:
@@ -134,6 +166,7 @@ if __name__ == "__main__":
     my_port = int(sys.argv[1])
     PORT = int(sys.argv[2])
     ADDR = (IP, PORT)
+    # PRODUCER_DATA_PATH = "BROKER"
     p = multiprocessing.Process(target=sendBeat, args=(my_port, ))
     p.start()
     print("Waiting for 60 seconds")
