@@ -10,6 +10,8 @@ RW1_PORT = 9091 # Default Leader
 RW2_PORT = 9092
 RW3_PORT = 9093
 
+
+
 from socket import socket, gethostbyname, gethostname, AF_INET, SOCK_DGRAM, SOCK_STREAM, SOL_SOCKET, SO_REUSEADDR
 from threading import Lock, Thread, Event
 from time import time, ctime, sleep
@@ -19,18 +21,19 @@ import json
 
 class ZookeeperLog:
     # "Manages Zookeeper Logs"
-    def __init__(self):
+    def __init__(self, path=''):
+        self.path = path
+        self.host = gethostbyname(gethostname())
         self.log = {
-            ('192.168.44.1', BROKER1_PORT): True,
-            ('192.168.44.1', BROKER2_PORT): False,
-            ('192.168.44.1', BROKER3_PORT): False,
+            (self.host, BROKER1_PORT): True,
+            (self.host, BROKER2_PORT): False,
+            (self.host, BROKER3_PORT): False,
         }
         self.producerPort = {
-            ('192.168.44.1', BROKER1_PORT): RW1_PORT,
-            ('192.168.44.1', BROKER2_PORT): RW2_PORT,
-            ('192.168.44.1', BROKER3_PORT): RW3_PORT, 
+            (self.host, BROKER1_PORT): RW1_PORT,
+            (self.host, BROKER2_PORT): RW2_PORT,
+            (self.host, BROKER3_PORT): RW3_PORT, 
         }
-        self.noLeader = True
 
     def addLeader(self, entry):
         self.log[entry] = True
@@ -48,6 +51,15 @@ class ZookeeperLog:
                 return key
         return None
     
+    def dumpLog(self):
+        with open(f'{self.path}ZookeeperLogs.txt', 'a') as fptr:
+            fptr.write(str(self.log))
+            fptr.write('\n')
+            fptr.write(str(self.producerPort))
+            fptr.write('\n\n')
+            # fptr.write('\n')
+
+
     def electLeader(self, running):
         currentLeader = self.getLeader()
         newLeader = None
@@ -59,6 +71,7 @@ class ZookeeperLog:
             self.addLeader(newLeader)
         else:
             print("No Brokers Alive For Electing A Leader")
+        self.dumpLog()
         return newLeader
 
        
