@@ -1,4 +1,3 @@
-
 import os
 import socket
 import threading
@@ -11,15 +10,15 @@ import requests
 IP = socket.gethostbyname(socket.gethostname())
 
 
-PORT = 9091
-ADDR = (IP, PORT)
+# PORT = 9091
+# ADDR = (IP, PORT)
 SIZE = 1024
 FORMAT = "utf-8"
 PRODUCER_DATA_PATH = "DATA"
 SERVERLOGS = "serverlogs"
 
 # Constants for heartbeat
-SERVERIP = '192.168.44.1'  # local host, just for testing
+SERVERIP = socket.gethostbyname(socket.gethostname())  # local host, just for testing
 HBPORT = 43278             # an arbitrary UDP port
 BEATWAIT = 10              # number of seconds between heartbeats
 
@@ -29,6 +28,7 @@ def handle_client(conn, addr):
     topicName = conn.recv(SIZE).decode(FORMAT)
     log+= f"Connection Received. Topic Name: {topicName} " + "\n"
     pythonName = conn.recv(SIZE).decode(FORMAT)
+    print(f"FIle Type: {pythonName}")
     files = os.listdir(PRODUCER_DATA_PATH)
 
     if topicName not in files and pythonName == "producer.py":
@@ -47,6 +47,7 @@ def handle_client(conn, addr):
     if pythonName == "producer.py":
         while True:
             data = conn.recv(SIZE).decode(FORMAT)
+            print(data)
             if data == "LOGOUT":
                 break
 
@@ -112,7 +113,8 @@ def main():
     while True:
         conn, addr = server.accept()
         print("Address of client on network: ", addr)
-        thread = threading.Thread(target=handle_client, args=(conn, addr))
+        # thread = threading.Thread(target=handle_client, args=(conn, addr))
+        thread = multiprocessing.Process(target=handle_client, args=(conn, addr))
         thread.start()
         print("[ACTIVE CONNECTIONS]")
 
@@ -131,11 +133,13 @@ def sendBeat(my_port):
 if __name__ == "__main__":
     my_port = int(sys.argv[1])
     PORT = int(sys.argv[2])
+    ADDR = (IP, PORT)
     p = multiprocessing.Process(target=sendBeat, args=(my_port, ))
     p.start()
-    # res = requests.get('http://127.0.1.1:8080/')
     print("Waiting for 60 seconds")
     time.sleep(60)
+    # res = requests.get('http://127.0.1.1:8080/')
+    
     flag = True
     while flag:
         res = requests.get('http://localhost:8000/')
