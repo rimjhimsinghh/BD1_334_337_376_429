@@ -1,7 +1,8 @@
 import socket
 import os
-import time
 import sys
+import time
+from datetime import datetime
 import requests
 
 socket_server = socket.socket()
@@ -9,7 +10,7 @@ server_host = socket.gethostname()
 IP = socket.gethostbyname(server_host)
 IP = socket.gethostbyname(socket.gethostname())
 
-# PORT = 9092
+# PORT = 4456
 # ADDR = (IP, PORT)
 FORMAT = "utf-8"
 SIZE = 1024
@@ -23,32 +24,46 @@ for key in response_dict:
     PORT = int(response_dict[key])
     ADDR = (IP, PORT)
 
+
 topicName = sys.argv[1]
 print("Topic Name: ", topicName)
 print("This is your IP: ", IP)
 socket_server.connect((IP, PORT))
 
 socket_server.send(str.encode(topicName))
-time.sleep(5)
+print("topic: ", topicName)
+time.sleep(1)
 socket_server.send(str.encode(os.path.basename(__file__)))
+time.sleep(1)
 
+flag = sys.argv[2] if len(sys.argv) > 2 else '#'
+socket_server.send(str.encode(flag))
 
+files = os.listdir(PRODUCER_DATA_PATH)
+# print(files)
 login = True
+if topicName not in files:
+    print(topicName + " does not exist.")
+    login = False
+
+
 
 while login:
     try:
-        data = input("> ")
-        if data == "LOGOUT":
-            print("[DISCONNECTED]\n")
-            login = False
-        else:
-            data = data + "\n"
+        data = "@"
         socket_server.send(data.encode(FORMAT))
+        response = socket_server.recv(SIZE)
+        response = response.decode()
+        if response != '[]':
+            response = eval(response)
+            for i in response:
+                print(i.strip())
     except KeyboardInterrupt:
         data = "LOGOUT"
         socket_server.send(data.encode(FORMAT))
-        socket_server.close()
-        break
+        print("Disconnected from the server.")
+        # socket_server.close()
+        login = False
     except ConnectionResetError:
         print("Connection Lost with Broker...Waiting for Broker")
         socket_server.close()
@@ -66,11 +81,7 @@ while login:
         socket_server.send(str.encode(topicName))
         time.sleep(1)
         socket_server.send(str.encode(os.path.basename(__file__)))
-        socket_server.send(data.encode(FORMAT))
+        socket_server.send(str.encode('#'))
+        # socket_server.send(data.encode(FORMAT))
         continue
-
-
-
-
-print("Disconnected from the server.")
 socket_server.close()
