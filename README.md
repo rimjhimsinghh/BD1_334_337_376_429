@@ -2,3 +2,7 @@
 
 ## Yet Another Kafka
 
+There are 3 main python files.  
+- producer.py  
+- consumer.py  
+- broker.py
