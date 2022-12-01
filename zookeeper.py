@@ -35,6 +35,9 @@ class ZookeeperLog:
             (self.host, BROKER3_PORT): RW3_PORT, 
         }
 
+        f = open(f'{self.path}ZookeeperLogs.txt', 'w')
+        f.close()
+
     def addLeader(self, entry):
         self.log[entry] = True
 
