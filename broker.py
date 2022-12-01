@@ -23,6 +23,47 @@ SERVERIP = socket.gethostbyname(socket.gethostname())  # local host, just for te
 HBPORT = 43278             # an arbitrary UDP port
 BEATWAIT = 10              # number of seconds between heartbeats
 
+def Merge(filedata):
+    final_list = []
+    i = 0
+    # filedata.sort()
+    # x,y,z = len(filedata[0]), len(filedata[1]), len(filedata[2])
+    # print("File lengths", x, y, z)
+    x,y,z = 0,0,0
+    # if len(filedata) == 0:
+    #     return list()
+    for i in range(len(filedata)):
+        if i == 0:
+            x = len(filedata[0])
+        if i == 1:
+             y = len(filedata[1])
+        if i == 2:
+             z = len(filedata[2])
+    # print(x, y, z)
+    i = 0
+    for i in range(0, min(x,y,z)):
+        for j in range(len(filedata)):
+            #print(filedata[j][i])
+            final_list.append(filedata[j][i])
+    if i < x-1 :
+        # print(filedata[0][i+1])
+        final_list.append(filedata[0][i+1])
+    if i < y-1:
+        # print(filedata[1][i+1])
+        final_list.append(filedata[1][i+1])
+    if(y==0 or z==0):
+        if x>0 :
+
+            final_list.append(filedata[0][0])
+        if y>0:
+
+            final_list.append(filedata[1][0])
+    # print("inside merge")
+    # print(final_list)
+    return final_list
+
+        
+
 
 def handle_client(conn, addr):
     log = ''
@@ -111,7 +152,7 @@ def handle_client(conn, addr):
                     filedata.extend(lines)
                     f.close()
             # fileDATA = [['','','',...],[],[]] => []
-            # final_list = Merge(filedata)
+            final_list = Merge(filedata)
             pres = len(filedata)
             if flag == '--from-beginning':
                 conn.send(str(filedata).encode(FORMAT))
